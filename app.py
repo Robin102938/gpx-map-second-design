@@ -1,4 +1,33 @@
-import io, math
+# Erstelle Info-Container für Kartenstile
+st.sidebar.markdown("---")
+with st.sidebar.expander("📚 Kartenstil-Informationen"):
+    st.markdown("""
+    ### Verfügbare Kartenstile:
+    
+    #### Basis-Stile:
+    - **Vienna Dark Blue**: Dunkler Stil - perfekt für Nachtläufe und Vienna-Style
+    - **OSM Standard**: Standard OpenStreetMap-Stil
+    
+    #### CartoDB:
+    - **CartoDB Dark Matter**: Eleganter, dunkler Stil
+    - **CartoDB Positron**: Heller, minimalistischer Stil
+    
+    #### Thunderforest:
+    - **Thunderforest Outdoors**: Detaillierte Outdoor-Karte, gut für Trails
+    - **Thunderforest Landscape**: Landschaftsansicht mit Höhendetails
+    - **Thunderforest Transport**: Karte mit Fokus auf Verkehrswege
+    
+    #### Spezial-Stile:
+    - **OpenTopoMap**: Topographische Karte mit Höhenlinien
+    - **CyclOSM**: Für Radfahrer optimierter Stil
+    - **OSM HOT**: Humanitarian OpenStreetMap Style
+    
+    #### ESRI:
+    - **ESRI WorldStreetMap**: Detaillierte Straßenkarte
+    - **ESRI WorldTopoMap**: Topographische Weltkarte
+    - **ESRI WorldImagery**: Satellitenbilder
+    """)
+import io, math, os
 
 import gpxpy, streamlit as st
 
@@ -95,16 +124,15 @@ map_style = st.sidebar.selectbox(
         "CartoDB Dark Matter", 
         "CartoDB Positron (Light)", 
         "OSM Standard", 
-        "Stamen Terrain", 
-        "Stamen Toner", 
-        "Stamen Watercolor", 
+        "Thunderforest Outdoors", 
+        "Thunderforest Landscape", 
+        "Thunderforest Transport",
+        "OpenTopoMap",
         "CyclOSM", 
         "OSM HOT", 
         "ESRI WorldStreetMap", 
         "ESRI WorldTopoMap", 
-        "ESRI WorldImagery",
-        "Jawg Streets",
-        "Jawg Terrain"
+        "ESRI WorldImagery"
     ]
 )
 
@@ -125,14 +153,17 @@ elif map_style == "CartoDB Dark Matter":
 elif map_style == "CartoDB Positron (Light)":
     TILE = "https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png"
     map_base_color = "#F5F5F5"
-elif map_style == "Stamen Terrain":
-    TILE = "http://tile.stamen.com/terrain/{z}/{x}/{y}.jpg"
+elif map_style == "Thunderforest Outdoors":
+    TILE = "https://tile.thunderforest.com/outdoors/{z}/{x}/{y}.png?apikey=6170aad10dfd42a38d4d8c709a536f38"
     map_base_color = "#F2F2F2"
-elif map_style == "Stamen Toner":
-    TILE = "http://tile.stamen.com/toner/{z}/{x}/{y}.png"
-    map_base_color = "#FFFFFF"
-elif map_style == "Stamen Watercolor":
-    TILE = "http://tile.stamen.com/watercolor/{z}/{x}/{y}.jpg"
+elif map_style == "Thunderforest Landscape":
+    TILE = "https://tile.thunderforest.com/landscape/{z}/{x}/{y}.png?apikey=6170aad10dfd42a38d4d8c709a536f38"
+    map_base_color = "#F5F5F5"
+elif map_style == "Thunderforest Transport":
+    TILE = "https://tile.thunderforest.com/transport/{z}/{x}/{y}.png?apikey=6170aad10dfd42a38d4d8c709a536f38"
+    map_base_color = "#F5F5F5"
+elif map_style == "OpenTopoMap":
+    TILE = "https://a.tile.opentopomap.org/{z}/{x}/{y}.png"
     map_base_color = "#F5F5F5"
 elif map_style == "CyclOSM":
     TILE = "https://a.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png"
@@ -149,17 +180,19 @@ elif map_style == "ESRI WorldTopoMap":
 elif map_style == "ESRI WorldImagery":
     TILE = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
     map_base_color = "#000000"
-elif map_style == "Jawg Streets":
-    TILE = "https://tile.jawg.io/jawg-streets/{z}/{x}/{y}.png?access-token=anonymous"
-    map_base_color = "#F5F5F5"
-elif map_style == "Jawg Terrain":
-    TILE = "https://tile.jawg.io/jawg-terrain/{z}/{x}/{y}.png?access-token=anonymous"
-    map_base_color = "#F5F5F5"
 else:
     TILE = "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
     map_base_color = "#FFFFFF"
 
 # ——— Input ———
+
+st.sidebar.header("📸 Logo")
+logo_file = st.sidebar.file_uploader("Marathon-Logo hochladen (optional)", type=["png", "jpg", "jpeg"])
+logo_size = st.sidebar.slider("Logo-Größe (%)", 5, 30, 15)
+logo_position = st.sidebar.selectbox(
+    "Logo-Position", 
+    ["Oben links", "Oben rechts", "Unten links", "Unten rechts"]
+)
 
 gpx_file = st.file_uploader("GPX-Datei hochladen", type="gpx")
 
@@ -261,6 +294,45 @@ if st.button("Poster erstellen") and gpx_file and event_name:
     inner_bg = Image.new("RGB", (POSTER_W - 2*BORDER_SIZE, POSTER_H - 2*BORDER_SIZE), inner_bg_color)
     poster.paste(inner_bg, (BORDER_SIZE, BORDER_SIZE))
     
+    # Marathon-Logo einfügen, falls hochgeladen
+    if logo_file is not None:
+        try:
+            # Logo laden und verarbeiten
+            logo = Image.open(logo_file)
+            
+            # Größe basierend auf dem Prozentsatz der Posterbreite berechnen
+            logo_width = int(POSTER_W * logo_size / 100)
+            # Behalt das Seitenverhältnis bei
+            logo_height = int(logo_width * logo.height / logo.width)
+            
+            # Logo resizen
+            logo = logo.resize((logo_width, logo_height), Image.LANCZOS)
+            
+            # Logo Position bestimmen
+            padding = 50  # Abstand vom Rand
+            if logo_position == "Oben links":
+                logo_pos = (BORDER_SIZE + padding, BORDER_SIZE + padding)
+            elif logo_position == "Oben rechts":
+                logo_pos = (POSTER_W - BORDER_SIZE - padding - logo_width, BORDER_SIZE + padding)
+            elif logo_position == "Unten links":
+                logo_pos = (BORDER_SIZE + padding, POSTER_H - BORDER_SIZE - padding - logo_height)
+            else:  # Unten rechts
+                logo_pos = (POSTER_W - BORDER_SIZE - padding - logo_width, POSTER_H - BORDER_SIZE - padding - logo_height)
+            
+            # Falls das Logo einen Alphakanal hat, entsprechenden Hintergrund erstellen
+            if logo.mode == 'RGBA':
+                # Erstelle einen Hintergrund in der Farbe des inneren Hintergrunds
+                bg = Image.new('RGB', logo.size, inner_bg_color)
+                # Kombiniere Logo mit Hintergrund
+                logo = Image.alpha_composite(bg.convert('RGBA'), logo)
+                logo = logo.convert('RGB')
+            
+            # Logo auf das Poster einfügen
+            poster.paste(logo, logo_pos)
+            st.sidebar.success("Logo erfolgreich eingefügt!")
+        except Exception as e:
+            st.sidebar.error(f"Fehler beim Einfügen des Logos: {str(e)}")
+    
     # Verfügbare Breite berechnen (mit Innenabstand)
     pad = 150  # Innenabstand
     available_width = POSTER_W - 2*BORDER_SIZE - 2*pad
@@ -357,6 +429,10 @@ if st.button("Poster erstellen") and gpx_file and event_name:
     
     # Karteninfos anzeigen
     st.write(f"Kartenstil: {map_style} | Zoom: {map_zoom} | Routenpunkte: {len(coords)}")
+    
+    # Logo-Info anzeigen wenn verwendet
+    if logo_file:
+        st.write(f"Logo: {logo_file.name} | Position: {logo_position} | Größe: {logo_size}%")
     
     # Vorschau anzeigen
     st.image(poster, caption="Vienna-Style GPX Poster")

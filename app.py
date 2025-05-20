@@ -21,6 +21,7 @@ st.title("GPX Map Poster – Vienna Style")
 
 # ——— Sidebar Einstellungen ———
 st.sidebar.header("🎨 Farben & Stil")
+inner_bg_color = st.sidebar.color_picker("Innere Hintergrundfarbe", "#F0F0F0")  # Hellgrau
 route_color = st.sidebar.color_picker("Streckenfarbe", "#FFD700")  # Gold für Vienna
 start_color = st.sidebar.color_picker("Startpunkt", "#FF8C00")  # Orange
 end_color = st.sidebar.color_picker("Zielpunkt", "#FF8C00")  # Orange
@@ -131,8 +132,8 @@ if st.button("Poster erstellen") and gpx_file and event_name:
     poster = Image.new("RGB", (POSTER_W, POSTER_H), "white")
     draw = ImageDraw.Draw(poster)
     
-    # Innere Fläche (grau)
-    inner_bg = Image.new("RGB", (POSTER_W - 2*BORDER_SIZE, POSTER_H - 2*BORDER_SIZE), "#F0F0F0")
+    # Innere Fläche (benutzerdefinierte Farbe)
+    inner_bg = Image.new("RGB", (POSTER_W - 2*BORDER_SIZE, POSTER_H - 2*BORDER_SIZE), inner_bg_color)
     poster.paste(inner_bg, (BORDER_SIZE, BORDER_SIZE))
     
     # Schriften laden
@@ -161,7 +162,7 @@ if st.button("Poster erstellen") and gpx_file and event_name:
     bbox = draw.textbbox((0, 0), title, font=f_title)
     tw, th = bbox[2]-bbox[0], bbox[3]-bbox[1]
     draw.text(((POSTER_W-tw)/2, y), title, font=f_title, fill="#000000")
-    y += th + 20
+    y += th + 50  # Erhöhter Abstand zwischen Titel und Datum
     
     # Datum
     date_str = run_date.strftime('%d %B %Y').upper()
@@ -187,15 +188,15 @@ if st.button("Poster erstellen") and gpx_file and event_name:
     bbox_r = draw.textbbox((0, 0), runner_text, font=f_runner)
     rw, rh = bbox_r[2]-bbox_r[0], bbox_r[3]-bbox_r[1]
     draw.text(((POSTER_W-rw)/2, y), runner_text, font=f_runner, fill="#000000")
-    y += rh + 10
+    y += rh + 25  # Erhöhter Abstand zwischen Name und Startnummer
     
     # Startnummer
     bbox_b = draw.textbbox((0, 0), bib_text, font=f_subtitle)
     bw, bh = bbox_b[2]-bbox_b[0], bbox_b[3]-bbox_b[1]
     draw.text(((POSTER_W-bw)/2, y), bib_text, font=f_subtitle, fill="#333333")
-    y += bh + 60
+    y += bh + 80  # Mehr Abstand vor den Daten
     
-    # Daten-Abschnitt im Vienna-Stil: drei Spalten
+    # Daten-Abschnitt im Vienna-Stil: drei Spalten mit mehr Abstand
     cols = 3
     col_width = (POSTER_W - 2*BORDER_SIZE - 2*pad) // cols
     
@@ -215,10 +216,10 @@ if st.button("Poster erstellen") and gpx_file and event_name:
         vw, vh = bbox_v[2]-bbox_v[0], bbox_v[3]-bbox_v[1]
         draw.text((x + (col_width - vw) // 2, y), value, font=f_data, fill=color)
         
-        # Einheit
+        # Einheit - mehr Abstand zum Wert
         bbox_u = draw.textbbox((0, 0), unit, font=f_unit)
         uw, uh = bbox_u[2]-bbox_u[0], bbox_u[3]-bbox_u[1]
-        draw.text((x + (col_width - uw) // 2, y + vh + 10), unit, font=f_unit, fill="#333333")
+        draw.text((x + (col_width - uw) // 2, y + vh + 20), unit, font=f_unit, fill="#333333")
     
     # Vorschau anzeigen
     st.image(poster, caption="Vienna-Style GPX Poster")

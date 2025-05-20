@@ -11,7 +11,7 @@ MAX_PTS_DISPLAY = 2000    # Sampling-Limit
 
 # Postergrößen (Quadratische Karte)
 POSTER_W = 2480
-POSTER_H = 3500
+POSTER_H = 3800  # erhöht für mehr Footer-Platz
 MAP_SIZE = 2480  # quadratisch
 PAD = 200        # Innenabstand
 
@@ -104,7 +104,7 @@ if st.button("Poster erstellen") and gpx_file and event_name and runner and dura
     bbox = draw.textbbox((0,0), title, font=f_title)
     tw, th = bbox[2]-bbox[0], bbox[3]-bbox[1]
     draw.text(((POSTER_W-tw)/2, y), title, font=f_title, fill="#000")
-    y += th + 20
+    y += th + 50  # mehr Abstand zwischen Titel und Datum
     # Datum darunter
     date_str = run_date.strftime('%d %B %Y')
     bbox_d = draw.textbbox((0,0), date_str, font=f_sub)

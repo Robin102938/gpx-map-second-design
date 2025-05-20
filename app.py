@@ -124,8 +124,6 @@ map_style = st.sidebar.selectbox(
     ]
 )
 
-pace_calculation = st.sidebar.checkbox("Pace berechnen (min/km)", value=True)
-
 # Extra Einstellungen
 map_opacity = st.sidebar.slider("Karte Transparenz", 0, 100, 100) / 100
 route_width = st.sidebar.slider("Streckendicke", 2, 15, 8)
@@ -203,6 +201,9 @@ bib_no = st.text_input("Startnummer (# automatisch davor)", "1234")
 
 duration = st.text_input("Zeit (HH:MM:SS)", "00:00:00")
 
+# Neues Feld für manuelle Pace-Eingabe
+pace = st.text_input("Pace (MM:SS pro km)", "00:00")
+
 # ——— Poster erzeugen ———
 if st.button("Poster erstellen") and gpx_file and event_name:
     # 1) GPX parse + Filter
@@ -234,27 +235,8 @@ if st.button("Poster erstellen") and gpx_file and event_name:
     # Berechne Gesamtdistanz in km
     total_distance_km = total_distance / 1000
     
-    # Für die Pace-Berechnung - korrigierte Version
-    if pace_calculation and duration:
-        # Parsen der Zeit
-        try:
-            h, m, s = map(int, duration.split(':'))
-            total_seconds = h * 3600 + m * 60 + s
-            # Berechne Pace in min/km mit korrekter Berechnung
-            if total_distance_km > 0:
-                pace_seconds = total_seconds / total_distance_km
-                # Korrekte Umrechnung: Dezimalminuten in Minuten und Sekunden
-                pace_min = int(pace_seconds // 60)
-                pace_sec = int(pace_seconds % 60)
-                
-                # Format mit führenden Nullen
-                pace_str = f"{pace_min:02d}:{pace_sec:02d}"
-            else:
-                pace_str = "00:00"
-        except:
-            pace_str = "00:00"
-    else:
-        pace_str = "00:00"
+    # Verwende die manuell eingegebene Pace (keine Berechnung mehr)
+    pace_str = pace
     
     # Sampling für Darstellung
     if len(coords) > MAX_PTS_DISPLAY:
@@ -400,7 +382,7 @@ if st.button("Poster erstellen") and gpx_file and event_name:
     data = [
         (distance.replace(" km", ""), "KM", "#000000"),
         (duration, "TIME", "#000000"),
-        (pace_str, "/KM", "#000000") if pace_calculation else ("", "", "#000000")
+        (pace_str, "/KM", "#000000")
     ]
     
     for i, (value, unit, color) in enumerate(data):

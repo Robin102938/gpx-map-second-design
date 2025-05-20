@@ -116,18 +116,66 @@ if st.button("Poster erstellen") and gpx_file and event_name and runner and dura
     poster.paste(map_img, ((POSTER_W-MAP_SIZE)//2, y))
     y += MAP_SIZE + PAD
 
-    # Footer-Zeilen
-    # Läufer + Bib
-    line1 = f"{runner}   #{bib_no.strip()}"
+        # Footer-Zeilen im neuen Layout
+    # Läufer + Bib mit Unterstreichung
+    line1 = f"{runner.upper()}   #{bib_no.strip()}"
     bbox1 = draw.textbbox((0,0), line1, font=f_meta)
     w1, h1 = bbox1[2]-bbox1[0], bbox1[3]-bbox1[1]
-    draw.text(((POSTER_W-w1)/2, y), line1, font=f_meta, fill="#000")
-    y += h1 + 20
-    # Distanz, Zeit
-    line2 = f"{distance}   •   {duration}"
-    bbox2 = draw.textbbox((0,0), line2, font=f_meta)
-    w2, h2 = bbox2[2]-bbox2[0], bbox2[3]-bbox2[1]
-    draw.text(((POSTER_W-w2)/2, y), line2, font=f_meta, fill="#000")
+    x1 = (POSTER_W - w1) / 2
+    draw.text((x1, y), line1, font=f_meta, fill="#000000")
+    # Unterstreichung unter Text
+    underline_y = y + h1 + 10
+    draw.line((x1, underline_y, x1 + w1, underline_y), fill="#000000", width=3)
+    y = underline_y + 40
+
+    # Drei Spalten: Distanz, Zeit, Pace
+    # Spaltenpositionen
+    col_centers = [POSTER_W/6, POSTER_W/2, 5*POSTER_W/6]
+    # 1) Distanz
+    val1 = distance
+    lbl1 = "MILES" if "km" not in distance.lower() else "km"
+    bbox_val1 = draw.textbbox((0,0), val1, font=f_meta)
+    wv1, hv1 = bbox_val1[2]-bbox_val1[0], bbox_val1[3]-bbox_val1[1]
+    draw.text((col_centers[0]-wv1/2, y), val1, font=f_meta, fill="#000000")
+    bbox_lbl1 = draw.textbbox((0,0), lbl1, font=f_sub)
+    wlbl1, hlbl1 = bbox_lbl1[2]-bbox_lbl1[0], bbox_lbl1[3]-bbox_lbl1[1]
+    draw.text((col_centers[0]-wlbl1/2, y+hv1+10), lbl1, font=f_sub, fill="#333333")
+
+    # 2) Zeit
+    val2 = duration
+    lbl2 = "TIME"
+    bbox_val2 = draw.textbbox((0,0), val2, font=f_meta)
+    wv2, hv2 = bbox_val2[2]-bbox_val2[0], bbox_val2[3]-bbox_val2[1]
+    draw.text((col_centers[1]-wv2/2, y), val2, font=f_meta, fill="#000000")
+    bbox_lbl2 = draw.textbbox((0,0), lbl2, font=f_sub)
+    wlbl2, hlbl2 = bbox_lbl2[2]-bbox_lbl2[0], bbox_lbl2[3]-bbox_lbl2[1]
+    draw.text((col_centers[1]-wlbl2/2, y+hv2+10), lbl2, font=f_sub, fill="#333333")
+
+    # 3) Pace (berechnet, falls gewünscht)
+    # Hier einfach Platzhalter oder Berechnung basierend auf distance/duration
+    # Wenn Zeit und Distanz bekannt, pace berechnen
+    try:
+        h,m,s = map(int, duration.split(':'))
+        total_sec = h*3600 + m*60 + s
+        # Distanz in Meilen, wenn km gegeben: umrechnen
+        dist_val = float(distance.split()[0])
+        if "km" in distance:
+            miles = dist_val * 0.621371
+        else:
+            miles = dist_val
+        pace_sec = total_sec / miles
+        pm = int(pace_sec//60)
+        ps = int(pace_sec%60)
+        val3 = f"{pm:02d}:{ps:02d}\""
+    except:
+        val3 = "--:--'"
+    lbl3 = "/MILE" if "km" not in distance.lower() else "/km"
+    bbox_val3 = draw.textbbox((0,0), val3, font=f_meta)
+    wv3, hv3 = bbox_val3[2]-bbox_val3[0], bbox_val3[3]-bbox_val3[1]
+    draw.text((col_centers[2]-wv3/2, y), val3, font=f_meta, fill="#000000")
+    bbox_lbl3 = draw.textbbox((0,0), lbl3, font=f_sub)
+    wlbl3, hlbl3 = bbox_lbl3[2]-bbox_lbl3[0], bbox_lbl3[3]-bbox_lbl3[1]
+    draw.text((col_centers[2]-wlbl3/2, y+hv3+10), lbl3, font=f_sub, fill="#333333")
 
     # 4) Download
     buf = io.BytesIO(); poster.save(buf, format="PNG")

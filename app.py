@@ -98,11 +98,9 @@ if st.button("Poster erstellen") and gpx_file and event_name:
     
     # Für die Pace-Berechnung
     if pace_calculation and duration:
-        # Parsen der Zeit
         try:
             h, m, s = map(int, duration.split(':'))
             total_seconds = h * 3600 + m * 60 + s
-            # Berechne Pace in min/km
             if total_distance_km > 0:
                 pace_seconds = total_seconds / total_distance_km
                 pace_min = int(pace_seconds // 60)
@@ -128,42 +126,50 @@ if st.button("Poster erstellen") and gpx_file and event_name:
     map_img = m.render(zoom=14)
     
     # 3) Vienna-Style Poster erstellen
-    # Weißer Rahmen außen
     poster = Image.new("RGB", (POSTER_W, POSTER_H), "white")
     draw = ImageDraw.Draw(poster)
-    
-    # Innere Fläche (benutzerdefinierte Farbe)
     inner_bg = Image.new("RGB", (POSTER_W - 2*BORDER_SIZE, POSTER_H - 2*BORDER_SIZE), inner_bg_color)
     poster.paste(inner_bg, (BORDER_SIZE, BORDER_SIZE))
     
     # Schriften laden
     try:
-        f_title = ImageFont.truetype("Arial-Bold.ttf", 140)
-        f_subtitle = ImageFont.truetype("Arial.ttf", 60)
         f_runner = ImageFont.truetype("Arial-Bold.ttf", 100)
+        f_subtitle = ImageFont.truetype("Arial.ttf", 60)
         f_data = ImageFont.truetype("Arial-Bold.ttf", 80)
         f_unit = ImageFont.truetype("Arial.ttf", 40)
     except:
-        try:
-            f_title = ImageFont.truetype("DejaVuSans-Bold.ttf", 140)
-            f_subtitle = ImageFont.truetype("DejaVuSans.ttf", 60)
-            f_runner = ImageFont.truetype("DejaVuSans-Bold.ttf", 100)
-            f_data = ImageFont.truetype("DejaVuSans-Bold.ttf", 80)
-            f_unit = ImageFont.truetype("DejaVuSans.ttf", 40)
-        except:
-            f_title = f_subtitle = f_runner = f_data = f_unit = ImageFont.load_default()
-    
+        f_runner = ImageFont.load_default()
+        f_subtitle = ImageFont.load_default()
+        f_data = ImageFont.load_default()
+        f_unit = ImageFont.load_default()
+
+    # Dynamische Schriftgröße für Titel
+    max_width = POSTER_W - 2 * BORDER_SIZE - 200
+    # Starte mit 140 und verkleinere bis es passt
+    font_size = 140
+    try:
+        while font_size > 20:
+            font = ImageFont.truetype("Arial-Bold.ttf", font_size)
+            if draw.textbbox((0, 0), event_name.upper(), font=font)[2] <= max_width:
+                f_title = font
+                break
+            font_size -= 2
+        else:
+            f_title = ImageFont.truetype("Arial-Bold.ttf", 20)
+    except:
+        f_title = ImageFont.load_default()
+
     # Positionen
-    pad = 150  # Innenabstand
+    pad = 150
     y = BORDER_SIZE + pad
-    
-    # Titel
+
+    # Titel zeichnen
     title = event_name.upper()
     bbox = draw.textbbox((0, 0), title, font=f_title)
     tw, th = bbox[2]-bbox[0], bbox[3]-bbox[1]
     draw.text(((POSTER_W-tw)/2, y), title, font=f_title, fill="#000000")
-    y += th + 50  # Erhöhter Abstand zwischen Titel und Datum
-    
+    y += th + 50
+
     # Datum
     date_str = run_date.strftime('%d %B %Y').upper()
     bbox_d = draw.textbbox((0, 0), date_str, font=f_subtitle)

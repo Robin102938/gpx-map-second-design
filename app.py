@@ -117,39 +117,55 @@ if st.button("Poster erstellen") and gpx_file and event_name and runner and dura
     y += MAP_SIZE + PAD
 
                 # Footer-Zeilen im neuen Layout
-    # Laufender Name + Bibnummer rechtsbündig (fett)
+        # Läufername (fett) + Startnummer (normal) rechtsbündig
     try:
-        f_bold_meta = ImageFont.truetype("DejaVuSans-Bold.ttf", 100)
+        f_runner = ImageFont.truetype("DejaVuSans-Bold.ttf", 100)
+        f_bib = ImageFont.truetype("DejaVuSans.ttf", 60)
     except:
-        f_bold_meta = f_meta
-    line1 = f"{runner.upper()}   #{bib_no.strip()}"
-    bbox1 = draw.textbbox((0,0), line1, font=f_bold_meta)
-    w1, h1 = bbox1[2]-bbox1[0], bbox1[3]-bbox1[1]
-    x1 = POSTER_W - PAD - w1
-    draw.text((x1, y), line1, font=f_bold_meta, fill="#000000")
+        f_runner = f_meta
+        f_bib = f_lbl
+    runner_text = runner.upper()
+    bib_text = f"#{bib_no.strip()}"
+    # Maße ermitteln
+    bbox_runner = draw.textbbox((0,0), runner_text, font=f_runner)
+    w_runner = bbox_runner[2] - bbox_runner[0]
+    bbox_bib = draw.textbbox((0,0), bib_text, font=f_bib)
+    w_bib = bbox_bib[2] - bbox_bib[0]
+    # Positionen: bib ganz rechts, runner links davon mit kleinem Abstand
+    x_bib = POSTER_W - PAD - w_bib
+    x_runner = x_bib - 20 - w_runner
+    draw.text((x_runner, y), runner_text, font=f_runner, fill="#000000")
+    draw.text((x_bib, y + (bbox_runner[3]-bbox_runner[1] - (bbox_bib[3]-bbox_bib[1])) ), bib_text, font=f_bib, fill="#000000")
     # mehr Abstand vor Unterstreichung
+    y += max(bbox_runner[3]-bbox_runner[1], bbox_bib[3]-bbox_bib[1]) + 60
     y += h1 + 50
     # Unterstreichung
     draw.line((PAD, y, POSTER_W-PAD, y), fill="#000000", width=3)
     y += 40
-    # Distanz & Zeit untereinander, rechtsbündig, mit kleiner Schrift
+    # Distanz linksbündig und Zeit rechtsbündig, Werte kleiner
     try:
         f_val = ImageFont.truetype("DejaVuSans-Bold.ttf", 80)
         f_lbl = ImageFont.truetype("DejaVuSans.ttf", 60)
     except:
-        f_val = f_lbl = ImageFont.load_default()
-    # Distanz rechtsbündig
+        f_val = f_meta
+        f_lbl = f_sub
+    # Distanz linksbündig
     val1 = distance
     bbox_val1 = draw.textbbox((0,0), val1, font=f_val)
     wv1, hv1 = bbox_val1[2]-bbox_val1[0], bbox_val1[3]-bbox_val1[1]
-    x_val = POSTER_W - PAD - wv1
+    x_val = PAD
     draw.text((x_val, y), val1, font=f_val, fill="#000000")
-    # km-Label darunter
+    # Einheit darunter
     unit1 = "km" if "km" in distance.lower() else "mi"
     bbox_lbl1 = draw.textbbox((0,0), unit1, font=f_lbl)
     wlbl1, hlbl1 = bbox_lbl1[2]-bbox_lbl1[0], bbox_lbl1[3]-bbox_lbl1[1]
     draw.text((x_val, y+hv1+10), unit1, font=f_lbl, fill="#333333")
     # Zeit rechtsbündig
+    val2 = duration
+    bbox_val2 = draw.textbbox((0,0), val2, font=f_val)
+    wv2, hv2 = bbox_val2[2]-bbox_val2[0], bbox_val2[3]-bbox_val2[1]
+    x_time = POSTER_W - PAD - wv2
+    draw.text((x_time, y), val2, font=f_val, fill="#000000")
     val2 = duration
     bbox_val2 = draw.textbbox((0,0), val2, font=f_val)
     wv2, hv2 = bbox_val2[2]-bbox_val2[0], bbox_val2[3]-bbox_val2[1]

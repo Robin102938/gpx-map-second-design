@@ -1,60 +1,21 @@
-# Erstelle Info-Container für Kartenstile
-st.sidebar.markdown("---")
-with st.sidebar.expander("📚 Kartenstil-Informationen"):
-    st.markdown("""
-    ### Verfügbare Kartenstile:
-    
-    #### Basis-Stile:
-    - **Vienna Dark Blue**: Dunkler Stil - perfekt für Nachtläufe und Vienna-Style
-    - **OSM Standard**: Standard OpenStreetMap-Stil
-    
-    #### CartoDB:
-    - **CartoDB Dark Matter**: Eleganter, dunkler Stil
-    - **CartoDB Positron**: Heller, minimalistischer Stil
-    
-    #### Thunderforest:
-    - **Thunderforest Outdoors**: Detaillierte Outdoor-Karte, gut für Trails
-    - **Thunderforest Landscape**: Landschaftsansicht mit Höhendetails
-    - **Thunderforest Transport**: Karte mit Fokus auf Verkehrswege
-    
-    #### Spezial-Stile:
-    - **OpenTopoMap**: Topographische Karte mit Höhenlinien
-    - **CyclOSM**: Für Radfahrer optimierter Stil
-    - **OSM HOT**: Humanitarian OpenStreetMap Style
-    
-    #### ESRI:
-    - **ESRI WorldStreetMap**: Detaillierte Straßenkarte
-    - **ESRI WorldTopoMap**: Topographische Weltkarte
-    - **ESRI WorldImagery**: Satellitenbilder
-    """)
-import io, math, os
-
-import gpxpy, streamlit as st
-
+import io
+import math
+import os
+import streamlit as st
+import gpxpy
 from datetime import datetime
-
 from staticmap import StaticMap, Line, CircleMarker
-
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
-import matplotlib.pyplot as plt
-
 # ——— Konfiguration ———
-
 MAX_SPEED_M_S   = 10      # maximal erlaubte Geschwindigkeit (m/s)
-
 MIN_DT_S        = 1       # minimale Zeitdifferenz (s)
-
 MAX_PTS_DISPLAY = 2000    # Sampling-Limit
 
 # Postergrößen für Vienna-Style
-
 POSTER_W = 2480
-
 POSTER_H = 3508  # A4 Verhältnis bei 300dpi
-
 MAP_SIZE = 2000  # quadratische Karte, kleiner als Posterbreite
-
 BORDER_SIZE = 100  # Rahmendicke
 
 # Neue Funktion zur dynamischen Anpassung der Schriftgröße
@@ -97,20 +58,47 @@ def get_dynamic_font_size(text, max_width, font_name, start_size=140, min_size=6
         
     return size
 
+# Streamlit Konfiguration
 st.set_page_config(layout="wide")
 
 st.title("GPX Map Poster – Vienna Style")
 
 # ——— Sidebar Einstellungen ———
-
 st.sidebar.header("🎨 Farben & Stil")
 
+# Erstelle Info-Container für Kartenstile
+st.sidebar.markdown("---")
+with st.sidebar.expander("📚 Kartenstil-Informationen"):
+    st.markdown("""
+    ### Verfügbare Kartenstile:
+    
+    #### Basis-Stile:
+    - **Vienna Dark Blue**: Dunkler Stil - perfekt für Nachtläufe und Vienna-Style
+    - **OSM Standard**: Standard OpenStreetMap-Stil
+    
+    #### CartoDB:
+    - **CartoDB Dark Matter**: Eleganter, dunkler Stil
+    - **CartoDB Positron**: Heller, minimalistischer Stil
+    
+    #### Thunderforest:
+    - **Thunderforest Outdoors**: Detaillierte Outdoor-Karte, gut für Trails
+    - **Thunderforest Landscape**: Landschaftsansicht mit Höhendetails
+    - **Thunderforest Transport**: Karte mit Fokus auf Verkehrswege
+    
+    #### Spezial-Stile:
+    - **OpenTopoMap**: Topographische Karte mit Höhenlinien
+    - **CyclOSM**: Für Radfahrer optimierter Stil
+    - **OSM HOT**: Humanitarian OpenStreetMap Style
+    
+    #### ESRI:
+    - **ESRI WorldStreetMap**: Detaillierte Straßenkarte
+    - **ESRI WorldTopoMap**: Topographische Weltkarte
+    - **ESRI WorldImagery**: Satellitenbilder
+    """)
+
 inner_bg_color = st.sidebar.color_picker("Innere Hintergrundfarbe", "#F0F0F0")  # Hellgrau
-
 route_color = st.sidebar.color_picker("Streckenfarbe", "#FFD700")  # Gold für Vienna
-
 start_color = st.sidebar.color_picker("Startpunkt", "#FF8C00")  # Orange
-
 end_color = st.sidebar.color_picker("Zielpunkt", "#FF8C00")  # Orange
 
 # Neue Option für Anpassung der Zoom-Stufe
@@ -185,7 +173,6 @@ else:
     map_base_color = "#FFFFFF"
 
 # ——— Input ———
-
 st.sidebar.header("📸 Logo")
 logo_file = st.sidebar.file_uploader("Marathon-Logo hochladen (optional)", type=["png", "jpg", "jpeg"])
 logo_size = st.sidebar.slider("Logo-Größe (%)", 5, 30, 15)
@@ -217,7 +204,6 @@ bib_no = st.text_input("Startnummer (# automatisch davor)", "1234")
 duration = st.text_input("Zeit (HH:MM:SS)", "00:00:00")
 
 # ——— Poster erzeugen ———
-
 if st.button("Poster erstellen") and gpx_file and event_name:
     # 1) GPX parse + Filter
     gpx = gpxpy.parse(gpx_file)

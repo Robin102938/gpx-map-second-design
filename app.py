@@ -1,29 +1,87 @@
 import io, math
+
 import gpxpy, streamlit as st
+
 from datetime import datetime
+
 from staticmap import StaticMap, Line, CircleMarker
+
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
+
 import matplotlib.pyplot as plt
 
 # ——— Konfiguration ———
+
 MAX_SPEED_M_S   = 10      # maximal erlaubte Geschwindigkeit (m/s)
+
 MIN_DT_S        = 1       # minimale Zeitdifferenz (s)
+
 MAX_PTS_DISPLAY = 2000    # Sampling-Limit
 
 # Postergrößen für Vienna-Style
+
 POSTER_W = 2480
+
 POSTER_H = 3508  # A4 Verhältnis bei 300dpi
+
 MAP_SIZE = 2000  # quadratische Karte, kleiner als Posterbreite
+
 BORDER_SIZE = 100  # Rahmendicke
 
+# Neue Funktion zur dynamischen Anpassung der Schriftgröße
+def get_dynamic_font_size(text, max_width, font_name, start_size=140, min_size=60):
+    """
+    Bestimmt die optimale Schriftgröße für einen Text, damit er in die maximale Breite passt
+    """
+    size = start_size
+    
+    # Versuche die angegebene Schriftart zu laden
+    try:
+        test_font = ImageFont.truetype(font_name + "-Bold.ttf", size)
+    except:
+        try:
+            test_font = ImageFont.truetype("DejaVuSans-Bold.ttf", size)
+        except:
+            return min_size  # Fallback bei Problemen mit Schriftarten
+            
+    # Testbild für Messungen erstellen
+    test_img = Image.new("RGB", (1, 1), "white")
+    test_draw = ImageDraw.Draw(test_img)
+    
+    # Schriftgröße reduzieren bis Text passt
+    while size > min_size:
+        try:
+            test_font = ImageFont.truetype(font_name + "-Bold.ttf", size)
+        except:
+            try:
+                test_font = ImageFont.truetype("DejaVuSans-Bold.ttf", size)
+            except:
+                break
+                
+        bbox = test_draw.textbbox((0, 0), text, font=test_font)
+        text_width = bbox[2] - bbox[0]
+        
+        if text_width <= max_width:
+            break
+            
+        size -= 5  # Schrittweise verkleinern
+        
+    return size
+
 st.set_page_config(layout="wide")
+
 st.title("GPX Map Poster – Vienna Style")
 
 # ——— Sidebar Einstellungen ———
+
 st.sidebar.header("🎨 Farben & Stil")
+
 inner_bg_color = st.sidebar.color_picker("Innere Hintergrundfarbe", "#F0F0F0")  # Hellgrau
+
 route_color = st.sidebar.color_picker("Streckenfarbe", "#FFD700")  # Gold für Vienna
+
 start_color = st.sidebar.color_picker("Startpunkt", "#FF8C00")  # Orange
+
 end_color = st.sidebar.color_picker("Zielpunkt", "#FF8C00")  # Orange
 
 map_style = st.sidebar.selectbox(
@@ -34,6 +92,7 @@ map_style = st.sidebar.selectbox(
 pace_calculation = st.sidebar.checkbox("Pace berechnen (min/km)", value=True)
 
 # Tile-Template je Stil
+
 if map_style == "Vienna Dark Blue":
     TILE = "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png"
     map_base_color = "#1A237E"  # Dunkelblau für Vienna Style
@@ -48,24 +107,31 @@ else:
     map_base_color = "#FFFFFF"
 
 # ——— Input ———
+
 gpx_file = st.file_uploader("GPX-Datei hochladen", type="gpx")
+
 event_name = st.text_input("Name des Laufs (z.B. Vienna City Marathon)", "VIENNA CITY MARATHON")
+
 run_date = st.date_input("Datum")
 
 distance_opt = st.selectbox(
     "Distanz", 
     ["5 km", "10 km", "21,0975 km", "42,195 km", "Andere…"]
 )
+
 if distance_opt == "Andere…":
     distance = st.text_input("Eigene Distanz (z.B. '15 km')")
 else:
     distance = distance_opt
 
 runner = st.text_input("Name des Läufers", "ATHLETE NAME")
+
 bib_no = st.text_input("Startnummer (# automatisch davor)", "1234")
+
 duration = st.text_input("Zeit (HH:MM:SS)", "00:00:00")
 
 # ——— Poster erzeugen ———
+
 if st.button("Poster erstellen") and gpx_file and event_name:
     # 1) GPX parse + Filter
     gpx = gpxpy.parse(gpx_file)
@@ -119,7 +185,6 @@ if st.button("Poster erstellen") and gpx_file and event_name:
     if len(coords) > MAX_PTS_DISPLAY:
         step = len(coords) // MAX_PTS_DISPLAY + 1
         coords = coords[::step]
-
     # 2) Karte rendern
     m = StaticMap(MAP_SIZE, MAP_SIZE, url_template=TILE)
     m.add_line(Line(coords, color=route_color, width=8))
@@ -136,16 +201,24 @@ if st.button("Poster erstellen") and gpx_file and event_name:
     inner_bg = Image.new("RGB", (POSTER_W - 2*BORDER_SIZE, POSTER_H - 2*BORDER_SIZE), inner_bg_color)
     poster.paste(inner_bg, (BORDER_SIZE, BORDER_SIZE))
     
-    # Schriften laden
+    # Verfügbare Breite berechnen (mit Innenabstand)
+    pad = 150  # Innenabstand
+    available_width = POSTER_W - 2*BORDER_SIZE - 2*pad
+    
+    # Dynamische Schriftgröße für den Titel bestimmen
+    title = event_name.upper()
+    title_font_size = get_dynamic_font_size(title, available_width, "Arial", 140, 60)
+    
+    # Schriften laden mit dynamischer Größe für den Titel
     try:
-        f_title = ImageFont.truetype("Arial-Bold.ttf", 140)
+        f_title = ImageFont.truetype("Arial-Bold.ttf", title_font_size)
         f_subtitle = ImageFont.truetype("Arial.ttf", 60)
         f_runner = ImageFont.truetype("Arial-Bold.ttf", 100)
         f_data = ImageFont.truetype("Arial-Bold.ttf", 80)
         f_unit = ImageFont.truetype("Arial.ttf", 40)
     except:
         try:
-            f_title = ImageFont.truetype("DejaVuSans-Bold.ttf", 140)
+            f_title = ImageFont.truetype("DejaVuSans-Bold.ttf", title_font_size)
             f_subtitle = ImageFont.truetype("DejaVuSans.ttf", 60)
             f_runner = ImageFont.truetype("DejaVuSans-Bold.ttf", 100)
             f_data = ImageFont.truetype("DejaVuSans-Bold.ttf", 80)
@@ -154,11 +227,9 @@ if st.button("Poster erstellen") and gpx_file and event_name:
             f_title = f_subtitle = f_runner = f_data = f_unit = ImageFont.load_default()
     
     # Positionen
-    pad = 150  # Innenabstand
     y = BORDER_SIZE + pad
     
-    # Titel
-    title = event_name.upper()
+    # Titel mit dynamischer Schriftgröße
     bbox = draw.textbbox((0, 0), title, font=f_title)
     tw, th = bbox[2]-bbox[0], bbox[3]-bbox[1]
     draw.text(((POSTER_W-tw)/2, y), title, font=f_title, fill="#000000")
@@ -220,6 +291,9 @@ if st.button("Poster erstellen") and gpx_file and event_name:
         bbox_u = draw.textbbox((0, 0), unit, font=f_unit)
         uw, uh = bbox_u[2]-bbox_u[0], bbox_u[3]-bbox_u[1]
         draw.text((x + (col_width - uw) // 2, y + vh + 20), unit, font=f_unit, fill="#333333")
+    
+    # Debug-Info zur dynamischen Schriftgröße anzeigen
+    st.write(f"Dynamische Titelgröße: {title_font_size}px für '{title}'")
     
     # Vorschau anzeigen
     st.image(poster, caption="Vienna-Style GPX Poster")

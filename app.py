@@ -136,8 +136,9 @@ if st.button("Poster erstellen") and gpx_file and event_name and runner and dura
     x_runner = x_bib - 20 - w_runner
     draw.text((x_runner, y), runner_text, font=f_runner, fill="#000000")
     draw.text((x_bib, y + (bbox_runner[3]-bbox_runner[1] - (bbox_bib[3]-bbox_bib[1])) ), bib_text, font=f_bib, fill="#000000")
-    # mehr Abstand vor Unterstreichung
+        # mehr Abstand vor Unterstreichung
     y += max(bbox_runner[3]-bbox_runner[1], bbox_bib[3]-bbox_bib[1]) + 60
+    # Unterstreichung(bbox_runner[3]-bbox_runner[1], bbox_bib[3]-bbox_bib[1]) + 60
     y += h1 + 50
     # Unterstreichung
     draw.line((PAD, y, POSTER_W-PAD, y), fill="#000000", width=3)

@@ -234,17 +234,23 @@ if st.button("Poster erstellen") and gpx_file and event_name:
     # Berechne Gesamtdistanz in km
     total_distance_km = total_distance / 1000
     
-    # Für die Pace-Berechnung
+    # Für die Pace-Berechnung mit korrigierter Rundung
     if pace_calculation and duration:
         # Parsen der Zeit
         try:
             h, m, s = map(int, duration.split(':'))
             total_seconds = h * 3600 + m * 60 + s
-            # Berechne Pace in min/km
+            # Berechne Pace in min/km mit korrekter Rundung
             if total_distance_km > 0:
                 pace_seconds = total_seconds / total_distance_km
+                # Korrekte Umrechnung: Dezimalminuten in Minuten und Sekunden
                 pace_min = int(pace_seconds // 60)
-                pace_sec = int(pace_seconds % 60)
+                # Runde auf ganze Sekunden (nicht abrunden)
+                pace_sec = round(pace_seconds % 60)
+                # Wenn wir auf 60 Sekunden aufrunden, erhöhe die Minuten
+                if pace_sec == 60:
+                    pace_min += 1
+                    pace_sec = 0
                 pace_str = f"{pace_min:02d}:{pace_sec:02d}"
             else:
                 pace_str = "00:00"
@@ -362,12 +368,12 @@ if st.button("Poster erstellen") and gpx_file and event_name:
     bbox_d = draw.textbbox((0, 0), date_str, font=f_subtitle)
     dw, dh = bbox_d[2]-bbox_d[0], bbox_d[3]-bbox_d[1]
     draw.text(((POSTER_W-dw)/2, y), date_str, font=f_subtitle, fill="#333333")
-    y += dh + 40
+    y += dh + 150  # Mehr Abstand nach dem Datum - erhöht von 40 auf 150
     
     # Map mit Zentrierung
     map_pos = ((POSTER_W - MAP_SIZE) // 2, y)
     poster.paste(map_img, map_pos)
-    y += MAP_SIZE + 80
+    y += MAP_SIZE + 120  # Mehr Abstand nach der Karte - erhöht von 80 auf 120
     
     # Läufername und Nummer
     runner_text = runner.upper()
@@ -381,13 +387,13 @@ if st.button("Poster erstellen") and gpx_file and event_name:
     bbox_r = draw.textbbox((0, 0), runner_text, font=f_runner)
     rw, rh = bbox_r[2]-bbox_r[0], bbox_r[3]-bbox_r[1]
     draw.text(((POSTER_W-rw)/2, y), runner_text, font=f_runner, fill="#000000")
-    y += rh + 25  # Erhöhter Abstand zwischen Name und Startnummer
+    y += rh + 35  # Erhöhter Abstand zwischen Name und Startnummer (von 25 auf 35)
     
     # Startnummer
     bbox_b = draw.textbbox((0, 0), bib_text, font=f_subtitle)
     bw, bh = bbox_b[2]-bbox_b[0], bbox_b[3]-bbox_b[1]
     draw.text(((POSTER_W-bw)/2, y), bib_text, font=f_subtitle, fill="#333333")
-    y += bh + 80  # Mehr Abstand vor den Daten
+    y += bh + 100  # Mehr Abstand vor den Daten (von 80 auf 100)
     
     # Daten-Abschnitt im Vienna-Stil: drei Spalten mit mehr Abstand
     cols = 3

@@ -116,31 +116,53 @@ if st.button("Poster erstellen") and gpx_file and event_name and runner and dura
     poster.paste(map_img, ((POSTER_W-MAP_SIZE)//2, y))
     y += MAP_SIZE + PAD
 
-            # Footer-Zeilen im neuen Layout
-    # Läufername & Startnummer rechtsbündig
+                # Footer-Zeilen im neuen Layout
+    # Laufender Name + Bibnummer rechtsbündig (fett)
+    try:
+        f_bold_meta = ImageFont.truetype("DejaVuSans-Bold.ttf", 100)
+    except:
+        f_bold_meta = f_meta
     line1 = f"{runner.upper()}   #{bib_no.strip()}"
-    bbox1 = draw.textbbox((0,0), line1, font=f_meta)
+    bbox1 = draw.textbbox((0,0), line1, font=f_bold_meta)
     w1, h1 = bbox1[2]-bbox1[0], bbox1[3]-bbox1[1]
     x1 = POSTER_W - PAD - w1
-    draw.text((x1, y), line1, font=f_meta, fill="#000000")
-    # Umbruch
-    y += h1 + 20
+    draw.text((x1, y), line1, font=f_bold_meta, fill="#000000")
+    # mehr Abstand vor Unterstreichung
+    y += h1 + 50
     # Unterstreichung
     draw.line((PAD, y, POSTER_W-PAD, y), fill="#000000", width=3)
-    y += 30
-    # Distanz und Zeit linksbündig
-    # Distanz
+    y += 40
+    # Distanz & Zeit untereinander, rechtsbündig, mit kleiner Schrift
+    try:
+        f_val = ImageFont.truetype("DejaVuSans-Bold.ttf", 80)
+        f_lbl = ImageFont.truetype("DejaVuSans.ttf", 60)
+    except:
+        f_val = f_lbl = ImageFont.load_default()
+    # Distanz rechtsbündig
     val1 = distance
-    draw.text((PAD, y), val1, font=f_meta, fill="#000000")
-    draw.text((PAD, y+h1+10), "km" if "km" in distance.lower() else "mi", font=f_sub, fill="#333333")
+    bbox_val1 = draw.textbbox((0,0), val1, font=f_val)
+    wv1, hv1 = bbox_val1[2]-bbox_val1[0], bbox_val1[3]-bbox_val1[1]
+    x_val = POSTER_W - PAD - wv1
+    draw.text((x_val, y), val1, font=f_val, fill="#000000")
+    # km-Label darunter
+    unit1 = "km" if "km" in distance.lower() else "mi"
+    bbox_lbl1 = draw.textbbox((0,0), unit1, font=f_lbl)
+    wlbl1, hlbl1 = bbox_lbl1[2]-bbox_lbl1[0], bbox_lbl1[3]-bbox_lbl1[1]
+    draw.text((x_val, y+hv1+10), unit1, font=f_lbl, fill="#333333")
     # Zeit rechtsbündig
     val2 = duration
-    bbox2 = draw.textbbox((0,0), val2, font=f_meta)
-    w2, h2 = bbox2[2]-bbox2[0], bbox2[3]-bbox2[1]
-    x2 = POSTER_W - PAD - w2
-    draw.text((x2, y), val2, font=f_meta, fill="#000000")
-    draw.text((x2, y+h2+10), "TIME", font=f_sub, fill="#333333")
+    bbox_val2 = draw.textbbox((0,0), val2, font=f_val)
+    wv2, hv2 = bbox_val2[2]-bbox_val2[0], bbox_val2[3]-bbox_val2[1]
+    x_time = POSTER_W - PAD - wv2
+    draw.text((x_time, y), val2, font=f_val, fill="#000000")
+    # TIME-Label darunter
+    unit2 = "TIME"
+    bbox_lbl2 = draw.textbbox((0,0), unit2, font=f_lbl)
+    wlbl2, hlbl2 = bbox_lbl2[2]-bbox_lbl2[0], bbox_lbl2[3]-bbox_lbl2[1]
+    draw.text((x_time, y+hv2+10), unit2, font=f_lbl, fill="#333333")
     # 4) Download
+    buf = io.BytesIO(); poster.save(buf, format="PNG")
+    st.download_button("Download Poster", buf.getvalue(), file_name="poster.png", mime="image/png")
     buf = io.BytesIO(); poster.save(buf, format="PNG")
     st.download_button("Download Poster", buf.getvalue(), file_name="poster.png", mime="image/png")
     buf = io.BytesIO(); poster.save(buf, format="PNG")

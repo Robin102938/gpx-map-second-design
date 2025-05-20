@@ -235,7 +235,7 @@ if st.button("Poster erstellen") and gpx_file and event_name:
     total_distance_km = total_distance / 1000
     
     # Für die Pace-Berechnung mit korrigierter Rundung
-    if pace_calculation and duration:
+     if pace_calculation and duration:
         # Parsen der Zeit
         try:
             h, m, s = map(int, duration.split(':'))
@@ -245,12 +245,9 @@ if st.button("Poster erstellen") and gpx_file and event_name:
                 pace_seconds = total_seconds / total_distance_km
                 # Korrekte Umrechnung: Dezimalminuten in Minuten und Sekunden
                 pace_min = int(pace_seconds // 60)
-                # Runde auf ganze Sekunden (nicht abrunden)
-                pace_sec = round(pace_seconds % 60)
-                # Wenn wir auf 60 Sekunden aufrunden, erhöhe die Minuten
-                if pace_sec == 60:
-                    pace_min += 1
-                    pace_sec = 0
+                pace_sec = int(pace_seconds % 60)
+                
+                # Format mit führenden Nullen
                 pace_str = f"{pace_min:02d}:{pace_sec:02d}"
             else:
                 pace_str = "00:00"
@@ -400,11 +397,11 @@ if st.button("Poster erstellen") and gpx_file and event_name:
     col_width = (POSTER_W - 2*BORDER_SIZE - 2*pad) // cols
     
     # Laufwerte
-    data = [
-        (distance, "KM", "#000000"),
-        (duration, "TIME", "#000000"),
-        (pace_str, "/KM", "#000000") if pace_calculation else ("", "", "#000000")
-    ]
+data = [
+    (distance.replace(" km", ""), "KM", "#000000"),  # Entfernung von "km" aus der Distanz
+    (duration, "TIME", "#000000"),
+    (pace_str, "/KM", "#000000") if pace_calculation else ("", "", "#000000")
+]
     
     for i, (value, unit, color) in enumerate(data):
         # Spalten-Position berechnen

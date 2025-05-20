@@ -36,7 +36,7 @@ pace_calculation = st.sidebar.checkbox("Pace berechnen (min/km)", value=True)
 # Tile-Template je Stil
 if map_style == "Vienna Dark Blue":
     TILE = "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png"
-    map_base_color = "#1A237E"  # Dunkelblau für Vienna Style
+    map_base_color = "#1A237E"
 elif map_style == "CartoDB Dark Matter":
     TILE = "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png"
     map_base_color = "#121212"
@@ -75,7 +75,6 @@ if st.button("Poster erstellen") and gpx_file and event_name:
         st.error("Kein Track gefunden.")
         st.stop()
     
-    # Filtern schneller Ausreißer
     def hav(a, b):
         lon1, lat1, lon2, lat2 = map(math.radians, (a[0], a[1], b[0], b[1]))
         dlon, dlat = lon2-lon1, lat2-lat1
@@ -92,11 +91,8 @@ if st.button("Poster erstellen") and gpx_file and event_name:
             total_distance += dist
     
     coords = [(lon, lat) for lon, lat, _ in clean]
-    
-    # Berechne Gesamtdistanz in km
     total_distance_km = total_distance / 1000
     
-    # Für die Pace-Berechnung
     if pace_calculation and duration:
         try:
             h, m, s = map(int, duration.split(':'))
@@ -113,7 +109,6 @@ if st.button("Poster erstellen") and gpx_file and event_name:
     else:
         pace_str = "00:00"
     
-    # Sampling für Darstellung
     if len(coords) > MAX_PTS_DISPLAY:
         step = len(coords) // MAX_PTS_DISPLAY + 1
         coords = coords[::step]
@@ -130,34 +125,34 @@ if st.button("Poster erstellen") and gpx_file and event_name:
     draw = ImageDraw.Draw(poster)
     inner_bg = Image.new("RGB", (POSTER_W - 2*BORDER_SIZE, POSTER_H - 2*BORDER_SIZE), inner_bg_color)
     poster.paste(inner_bg, (BORDER_SIZE, BORDER_SIZE))
-    
-    # Schriften laden
+
+    # Schriften laden (feste Größen)
     try:
-        f_runner = ImageFont.truetype("Arial-Bold.ttf", 100)
+        f_title = ImageFont.truetype("Arial-Bold.ttf", 140)
         f_subtitle = ImageFont.truetype("Arial.ttf", 60)
+        f_runner = ImageFont.truetype("Arial-Bold.ttf", 100)
         f_data = ImageFont.truetype("Arial-Bold.ttf", 80)
         f_unit = ImageFont.truetype("Arial.ttf", 40)
     except:
-        f_runner = ImageFont.load_default()
+        f_title = ImageFont.load_default()
         f_subtitle = ImageFont.load_default()
+        f_runner = ImageFont.load_default()
         f_data = ImageFont.load_default()
         f_unit = ImageFont.load_default()
 
-    # Dynamische Schriftgröße für Titel
+    # Dynamische Schriftgröße nur für den Titel
     max_width = POSTER_W - 2 * BORDER_SIZE - 200
-    # Starte mit 140 und verkleinere bis es passt
-    font_size = 140
+    base_size = 140
     try:
+        font_size = base_size
         while font_size > 20:
-            font = ImageFont.truetype("Arial-Bold.ttf", font_size)
-            if draw.textbbox((0, 0), event_name.upper(), font=font)[2] <= max_width:
-                f_title = font
+            temp_font = ImageFont.truetype("Arial-Bold.ttf", font_size)
+            if draw.textbbox((0, 0), event_name.upper(), font=temp_font)[2] <= max_width:
+                f_title = temp_font
                 break
             font_size -= 2
-        else:
-            f_title = ImageFont.truetype("Arial-Bold.ttf", 20)
     except:
-        f_title = ImageFont.load_default()
+        pass
 
     # Positionen
     pad = 150
@@ -176,3 +171,49 @@ if st.button("Poster erstellen") and gpx_file and event_name:
     dw, dh = bbox_d[2]-bbox_d[0], bbox_d[3]-bbox_d[1]
     draw.text(((POSTER_W-dw)/2, y), date_str, font=f_subtitle, fill="#333333")
     y += dh + 40
+
+    # Map mit Zentrierung
+    map_pos = ((POSTER_W - MAP_SIZE) // 2, y)
+    poster.paste(map_img, map_pos)
+    y += MAP_SIZE + 80
+
+    # Läufername und Nummer etc. (unverändert)
+    runner_text = runner.upper()
+    bib_text = f"#{bib_no}"
+    draw.line((BORDER_SIZE + 100, y, POSTER_W - BORDER_SIZE - 100, y), fill="#000000", width=3)
+    y += 40
+    bbox_r = draw.textbbox((0, 0), runner_text, font=f_runner)
+    rw, rh = bbox_r[2]-bbox_r[0], bbox_r[3]-bbox_r[1]
+    draw.text(((POSTER_W-rw)/2, y), runner_text, font=f_runner, fill="#000000")
+    y += rh + 25
+    bbox_b = draw.textbbox((0, 0), bib_text, font=f_subtitle)
+    bw, bh = bbox_b[2]-bbox_b[0], bbox_b[3]-bbox_b[1]
+    draw.text(((POSTER_W-bw)/2, y), bib_text, font=f_subtitle, fill="#333333")
+    y += bh + 80
+
+    cols = 3
+    col_width = (POSTER_W - 2*BORDER_SIZE - 2*pad) // cols
+    data = [
+        (distance, "KM", "#000000"),
+        (duration, "TIME", "#000000"),
+        (pace_str, "/KM", "#000000") if pace_calculation else ("", "", "#000000")
+    ]
+    for i, (value, unit, color) in enumerate(data):
+        x = BORDER_SIZE + pad + i * col_width
+        bbox_v = draw.textbbox((0, 0), value, font=f_data)
+        vw, vh = bbox_v[2]-bbox_v[0], bbox_v[3]-bbox_v[1]
+        draw.text((x + (col_width - vw) // 2, y), value, font=f_data, fill=color)
+        bbox_u = draw.textbbox((0, 0), unit, font=f_unit)
+        uw, uh = bbox_u[2]-bbox_u[0], bbox_u[3]-bbox_u[1]
+        draw.text((x + (col_width - uw) // 2, y + vh + 20), unit, font=f_unit, fill="#333333")
+
+    # Vorschau und Download
+    st.image(poster, caption="Vienna-Style GPX Poster")
+    buf = io.BytesIO()
+    poster.save(buf, format="PNG")
+    st.download_button(
+        "Poster herunterladen", 
+        buf.getvalue(), 
+        file_name=f"{event_name.replace(' ', '_')}_poster.png", 
+        mime="image/png"
+    )

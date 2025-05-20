@@ -178,7 +178,7 @@ logo_file = st.sidebar.file_uploader("Marathon-Logo hochladen (optional)", type=
 logo_size = st.sidebar.slider("Logo-Größe (%)", 5, 30, 15)
 logo_position = st.sidebar.selectbox(
     "Logo-Position", 
-    ["Oben links", "Oben rechts", "Unten links", "Unten rechts"]
+    ["Oben links", "Oben Mitte", "Oben rechts", "Unten links", "Unten Mitte", "Unten rechts"]
 )
 
 gpx_file = st.file_uploader("GPX-Datei hochladen", type="gpx")
@@ -298,10 +298,14 @@ if st.button("Poster erstellen") and gpx_file and event_name:
             padding = 50  # Abstand vom Rand
             if logo_position == "Oben links":
                 logo_pos = (BORDER_SIZE + padding, BORDER_SIZE + padding)
+            elif logo_position == "Oben Mitte":
+                logo_pos = ((POSTER_W - logo_width) // 2, BORDER_SIZE + padding)
             elif logo_position == "Oben rechts":
                 logo_pos = (POSTER_W - BORDER_SIZE - padding - logo_width, BORDER_SIZE + padding)
             elif logo_position == "Unten links":
                 logo_pos = (BORDER_SIZE + padding, POSTER_H - BORDER_SIZE - padding - logo_height)
+            elif logo_position == "Unten Mitte":
+                logo_pos = ((POSTER_W - logo_width) // 2, POSTER_H - BORDER_SIZE - padding - logo_height)
             else:  # Unten rechts
                 logo_pos = (POSTER_W - BORDER_SIZE - padding - logo_width, POSTER_H - BORDER_SIZE - padding - logo_height)
             

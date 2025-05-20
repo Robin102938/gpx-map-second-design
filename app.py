@@ -2,58 +2,70 @@ import io, math
 import gpxpy, streamlit as st
 from datetime import datetime
 from staticmap import StaticMap, Line, CircleMarker
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageFilter
+import matplotlib.pyplot as plt
 
 # ——— Konfiguration ———
 MAX_SPEED_M_S   = 10      # maximal erlaubte Geschwindigkeit (m/s)
 MIN_DT_S        = 1       # minimale Zeitdifferenz (s)
 MAX_PTS_DISPLAY = 2000    # Sampling-Limit
 
-# Postergrößen (Quadratische Karte)
+# Postergrößen für Vienna-Style
 POSTER_W = 2480
-POSTER_H = 3800  # erhöht für mehr Footer-Platz
-MAP_SIZE = 2480  # quadratisch
-PAD = 200        # Innenabstand
+POSTER_H = 3508  # A4 Verhältnis bei 300dpi
+MAP_SIZE = 2000  # quadratische Karte, kleiner als Posterbreite
+BORDER_SIZE = 100  # Rahmendicke
 
 st.set_page_config(layout="wide")
-st.title("GPX Map Poster – Square Design")
+st.title("GPX Map Poster – Vienna Style")
 
 # ——— Sidebar Einstellungen ———
 st.sidebar.header("🎨 Farben & Stil")
-route_color        = st.sidebar.color_picker("Streckenfarbe", "#FF5500")
-route_shadow_color = st.sidebar.color_picker("Schattenfarbe", "#CCCCCC")
-start_color        = st.sidebar.color_picker("Startpunkt", "#00AA00")
-end_color          = st.sidebar.color_picker("Zielpunkt", "#CC0000")
+route_color = st.sidebar.color_picker("Streckenfarbe", "#FFD700")  # Gold für Vienna
+start_color = st.sidebar.color_picker("Startpunkt", "#FF8C00")  # Orange
+end_color = st.sidebar.color_picker("Zielpunkt", "#FF8C00")  # Orange
+
 map_style = st.sidebar.selectbox(
     "Kartenstil",
-    ["CartoDB Positron (Light)", "CartoDB Dark Matter", "OSM Standard"]
+    ["Vienna Dark Blue", "CartoDB Dark Matter", "CartoDB Positron (Light)", "OSM Standard"]
 )
 
+pace_calculation = st.sidebar.checkbox("Pace berechnen (min/km)", value=True)
+
 # Tile-Template je Stil
-if map_style == "CartoDB Positron (Light)":
-    TILE = "https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png"
+if map_style == "Vienna Dark Blue":
+    TILE = "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png"
+    map_base_color = "#1A237E"  # Dunkelblau für Vienna Style
 elif map_style == "CartoDB Dark Matter":
     TILE = "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png"
+    map_base_color = "#121212"
+elif map_style == "CartoDB Positron (Light)":
+    TILE = "https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png"
+    map_base_color = "#F5F5F5"
 else:
     TILE = "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+    map_base_color = "#FFFFFF"
 
 # ——— Input ———
-gpx_file   = st.file_uploader("GPX-Datei hochladen", type="gpx")
-event_name = st.text_input("Name des Laufs (z. B. Berlin Marathon)")
-run_date   = st.date_input("Datum")
+gpx_file = st.file_uploader("GPX-Datei hochladen", type="gpx")
+event_name = st.text_input("Name des Laufs (z.B. Vienna City Marathon)", "VIENNA CITY MARATHON")
+run_date = st.date_input("Datum")
 
-distance_opt = st.selectbox("Distanz", ["5 km","10 km","21,0975 km","42,195 km","Andere…"])
+distance_opt = st.selectbox(
+    "Distanz", 
+    ["5 km", "10 km", "21,0975 km", "42,195 km", "Andere…"]
+)
 if distance_opt == "Andere…":
     distance = st.text_input("Eigene Distanz (z.B. '15 km')")
 else:
     distance = distance_opt
 
-runner = st.text_input("Name des Läufers")
-bib_no = st.text_input("Startnummer (# automatisch davor)")
-duration = st.text_input("Zeit (HH:MM:SS)")
+runner = st.text_input("Name des Läufers", "ATHLETE NAME")
+bib_no = st.text_input("Startnummer (# automatisch davor)", "1234")
+duration = st.text_input("Zeit (HH:MM:SS)", "00:00:00")
 
 # ——— Poster erzeugen ———
-if st.button("Poster erstellen") and gpx_file and event_name and runner and duration:
+if st.button("Poster erstellen") and gpx_file and event_name:
     # 1) GPX parse + Filter
     gpx = gpxpy.parse(gpx_file)
     pts_raw = [(pt.longitude, pt.latitude, pt.time)
@@ -61,123 +73,162 @@ if st.button("Poster erstellen") and gpx_file and event_name and runner and dura
     if len(pts_raw) < 2:
         st.error("Kein Track gefunden.")
         st.stop()
+    
     # Filtern schneller Ausreißer
-    def hav(a,b):
-        lon1,lat1,lon2,lat2 = map(math.radians,(a[0],a[1],b[0],b[1]))
+    def hav(a, b):
+        lon1, lat1, lon2, lat2 = map(math.radians, (a[0], a[1], b[0], b[1]))
         dlon, dlat = lon2-lon1, lat2-lat1
         h = math.sin(dlat/2)**2 + math.cos(lat1)*math.cos(lat2)*math.sin(dlon/2)**2
-        return 2*6371000*math.asin(math.sqrt(h))
-    clean=[pts_raw[0]]
-    for a,b,t in zip(pts_raw, pts_raw[1:], pts_raw[1:]):
-        dist = hav(a,b)
-        dt = (b[2]-a[2]).total_seconds()
-        if dt>=MIN_DT_S and dist/dt <= MAX_SPEED_M_S:
+        return 2 * 6371000 * math.asin(math.sqrt(h))
+    
+    clean = [pts_raw[0]]
+    total_distance = 0
+    for a, b in zip(pts_raw, pts_raw[1:]):
+        dist = hav(a, b)
+        dt = (b[2]-a[2]).total_seconds() if a[2] and b[2] else MIN_DT_S
+        if dt >= MIN_DT_S and dist/dt <= MAX_SPEED_M_S:
             clean.append(b)
-    coords=[(lon,lat) for lon,lat,_ in clean]
-    # Sampling
-    if len(coords)>MAX_PTS_DISPLAY:
-        step = len(coords)//MAX_PTS_DISPLAY+1
+            total_distance += dist
+    
+    coords = [(lon, lat) for lon, lat, _ in clean]
+    
+    # Berechne Gesamtdistanz in km
+    total_distance_km = total_distance / 1000
+    
+    # Für die Pace-Berechnung
+    if pace_calculation and duration:
+        # Parsen der Zeit
+        try:
+            h, m, s = map(int, duration.split(':'))
+            total_seconds = h * 3600 + m * 60 + s
+            # Berechne Pace in min/km
+            if total_distance_km > 0:
+                pace_seconds = total_seconds / total_distance_km
+                pace_min = int(pace_seconds // 60)
+                pace_sec = int(pace_seconds % 60)
+                pace_str = f"{pace_min:02d}:{pace_sec:02d}"
+            else:
+                pace_str = "00:00"
+        except:
+            pace_str = "00:00"
+    else:
+        pace_str = "00:00"
+    
+    # Sampling für Darstellung
+    if len(coords) > MAX_PTS_DISPLAY:
+        step = len(coords) // MAX_PTS_DISPLAY + 1
         coords = coords[::step]
 
-    # 2) Karte quadratisch rendern
+    # 2) Karte rendern
     m = StaticMap(MAP_SIZE, MAP_SIZE, url_template=TILE)
-    m.add_line(Line(coords, color=route_shadow_color, width=16))
-    m.add_line(Line(coords, color=route_color, width=6))
+    m.add_line(Line(coords, color=route_color, width=8))
     m.add_marker(CircleMarker(coords[0], start_color, 30))
     m.add_marker(CircleMarker(coords[-1], end_color, 30))
     map_img = m.render(zoom=14)
-
-    # 3) Poster Canvas
+    
+    # 3) Vienna-Style Poster erstellen
+    # Weißer Rahmen außen
     poster = Image.new("RGB", (POSTER_W, POSTER_H), "white")
-    # Schrift
-    try:
-        f_title = ImageFont.truetype("DejaVuSans-Bold.ttf", 120)
-        f_sub   = ImageFont.truetype("DejaVuSans.ttf", 80)
-        f_meta  = ImageFont.truetype("DejaVuSans.ttf", 100)
-    except:
-        f_title = f_sub = f_meta = ImageFont.load_default()
     draw = ImageDraw.Draw(poster)
-
-    y = PAD
+    
+    # Innere Fläche (grau)
+    inner_bg = Image.new("RGB", (POSTER_W - 2*BORDER_SIZE, POSTER_H - 2*BORDER_SIZE), "#F0F0F0")
+    poster.paste(inner_bg, (BORDER_SIZE, BORDER_SIZE))
+    
+    # Schriften laden
+    try:
+        f_title = ImageFont.truetype("Arial-Bold.ttf", 140)
+        f_subtitle = ImageFont.truetype("Arial.ttf", 60)
+        f_runner = ImageFont.truetype("Arial-Bold.ttf", 100)
+        f_data = ImageFont.truetype("Arial-Bold.ttf", 80)
+        f_unit = ImageFont.truetype("Arial.ttf", 40)
+    except:
+        try:
+            f_title = ImageFont.truetype("DejaVuSans-Bold.ttf", 140)
+            f_subtitle = ImageFont.truetype("DejaVuSans.ttf", 60)
+            f_runner = ImageFont.truetype("DejaVuSans-Bold.ttf", 100)
+            f_data = ImageFont.truetype("DejaVuSans-Bold.ttf", 80)
+            f_unit = ImageFont.truetype("DejaVuSans.ttf", 40)
+        except:
+            f_title = f_subtitle = f_runner = f_data = f_unit = ImageFont.load_default()
+    
+    # Positionen
+    pad = 150  # Innenabstand
+    y = BORDER_SIZE + pad
+    
     # Titel
     title = event_name.upper()
-    bbox = draw.textbbox((0,0), title, font=f_title)
+    bbox = draw.textbbox((0, 0), title, font=f_title)
     tw, th = bbox[2]-bbox[0], bbox[3]-bbox[1]
-    draw.text(((POSTER_W-tw)/2, y), title, font=f_title, fill="#000")
-    y += th + 50  # mehr Abstand zwischen Titel und Datum
-    # Datum darunter
-    date_str = run_date.strftime('%d %B %Y')
-    bbox_d = draw.textbbox((0,0), date_str, font=f_sub)
+    draw.text(((POSTER_W-tw)/2, y), title, font=f_title, fill="#000000")
+    y += th + 20
+    
+    # Datum
+    date_str = run_date.strftime('%d %B %Y').upper()
+    bbox_d = draw.textbbox((0, 0), date_str, font=f_subtitle)
     dw, dh = bbox_d[2]-bbox_d[0], bbox_d[3]-bbox_d[1]
-    draw.text(((POSTER_W-dw)/2, y), date_str, font=f_sub, fill="#333")
-    y += dh + PAD
-
-    # Map in Mitte
-    poster.paste(map_img, ((POSTER_W-MAP_SIZE)//2, y))
-    y += MAP_SIZE + PAD
-
-                    # Footer-Zeilen im neuen Layout
-    # Läufername (fett) + Startnummer (normal) rechtsbündig
-    try:
-        f_runner = ImageFont.truetype("DejaVuSans-Bold.ttf", 100)
-        f_bib = ImageFont.truetype("DejaVuSans.ttf", 60)
-    except:
-        f_runner = f_meta
-        f_bib = f_lbl
+    draw.text(((POSTER_W-dw)/2, y), date_str, font=f_subtitle, fill="#333333")
+    y += dh + 40
+    
+    # Map mit Zentrierung
+    map_pos = ((POSTER_W - MAP_SIZE) // 2, y)
+    poster.paste(map_img, map_pos)
+    y += MAP_SIZE + 80
+    
+    # Läufername und Nummer
     runner_text = runner.upper()
-    bib_text = f"#{bib_no.strip()}"
-    # Maße ermitteln
-    bbox_runner = draw.textbbox((0,0), runner_text, font=f_runner)
-    w_runner = bbox_runner[2] - bbox_runner[0]
-    bbox_bib = draw.textbbox((0,0), bib_text, font=f_bib)
-    w_bib = bbox_bib[2] - bbox_bib[0]
-    # Positionen: bib ganz rechts, runner links davon mit kleinem Abstand
-    x_bib = POSTER_W - PAD - w_bib
-    x_runner = x_bib - 20 - w_runner
-    draw.text((x_runner, y), runner_text, font=f_runner, fill="#000000")
-    # vertikal zentrieren von Bib Text relativ Runner
-    dy = (bbox_runner[3]-bbox_runner[1] - (bbox_bib[3]-bbox_bib[1]))/2
-    draw.text((x_bib, y + dy), bib_text, font=f_bib, fill="#000000")
-    # mehr Abstand vor Unterstreichung
-    y += max(bbox_runner[3]-bbox_runner[1], bbox_bib[3]-bbox_bib[1]) + 60
-    # Unterstreichung
-    draw.line((PAD, y, POSTER_W-PAD, y), fill="#000000", width=3)
+    bib_text = f"#{bib_no}"
+    
+    # Trennlinie
+    draw.line((BORDER_SIZE + 100, y, POSTER_W - BORDER_SIZE - 100, y), fill="#000000", width=3)
     y += 40
-    # Distanz links, Zeit rechts
-    try:
-        f_val = ImageFont.truetype("DejaVuSans-Bold.ttf", 80)
-        f_lbl = ImageFont.truetype("DejaVuSans.ttf", 60)
-    except:
-        f_val = f_meta
-        f_lbl = f_sub
-    # Distanz
-    val1 = distance
-    bbox_val1 = draw.textbbox((0,0), val1, font=f_val)
-    wv1, hv1 = bbox_val1[2]-bbox_val1[0], bbox_val1[3]-bbox_val1[1]
-    x_val = PAD
-    draw.text((x_val, y), val1, font=f_val, fill="#000000")
-    # Einheit
-    unit1 = "km" if "km" in distance.lower() else "mi"
-    bbox_lbl1 = draw.textbbox((0,0), unit1, font=f_lbl)
-    draw.text((x_val, y+hv1+10), unit1, font=f_lbl, fill="#333333")
-    # Zeit
-    val2 = duration
-    bbox_val2 = draw.textbbox((0,0), val2, font=f_val)
-    wv2, hv2 = bbox_val2[2]-bbox_val2[0], bbox_val2[3]-bbox_val2[1]
-    x_time = POSTER_W - PAD - wv2
-    draw.text((x_time, y), val2, font=f_val, fill="#000000")
-    # Label TIME
-    unit2 = "TIME"
-    bbox_lbl2 = draw.textbbox((0,0), unit2, font=f_lbl)
-    draw.text((x_time, y+hv2+10), unit2, font=f_lbl, fill="#333333")
-
-    # Download
+    
+    # Läufer-Text
+    bbox_r = draw.textbbox((0, 0), runner_text, font=f_runner)
+    rw, rh = bbox_r[2]-bbox_r[0], bbox_r[3]-bbox_r[1]
+    draw.text(((POSTER_W-rw)/2, y), runner_text, font=f_runner, fill="#000000")
+    y += rh + 10
+    
+    # Startnummer
+    bbox_b = draw.textbbox((0, 0), bib_text, font=f_subtitle)
+    bw, bh = bbox_b[2]-bbox_b[0], bbox_b[3]-bbox_b[1]
+    draw.text(((POSTER_W-bw)/2, y), bib_text, font=f_subtitle, fill="#333333")
+    y += bh + 60
+    
+    # Daten-Abschnitt im Vienna-Stil: drei Spalten
+    cols = 3
+    col_width = (POSTER_W - 2*BORDER_SIZE - 2*pad) // cols
+    
+    # Laufwerte
+    data = [
+        (distance, "KM", "#000000"),
+        (duration, "TIME", "#000000"),
+        (pace_str, "/KM", "#000000") if pace_calculation else ("", "", "#000000")
+    ]
+    
+    for i, (value, unit, color) in enumerate(data):
+        # Spalten-Position berechnen
+        x = BORDER_SIZE + pad + i * col_width
+        
+        # Wert
+        bbox_v = draw.textbbox((0, 0), value, font=f_data)
+        vw, vh = bbox_v[2]-bbox_v[0], bbox_v[3]-bbox_v[1]
+        draw.text((x + (col_width - vw) // 2, y), value, font=f_data, fill=color)
+        
+        # Einheit
+        bbox_u = draw.textbbox((0, 0), unit, font=f_unit)
+        uw, uh = bbox_u[2]-bbox_u[0], bbox_u[3]-bbox_u[1]
+        draw.text((x + (col_width - uw) // 2, y + vh + 10), unit, font=f_unit, fill="#333333")
+    
+    # Vorschau anzeigen
+    st.image(poster, caption="Vienna-Style GPX Poster")
+    
+    # Download-Button
     buf = io.BytesIO()
     poster.save(buf, format="PNG")
-    st.download_button("Download Poster", buf.getvalue(), file_name="poster.png", mime="image/png")
-    buf = io.BytesIO(); poster.save(buf, format="PNG")
-    st.download_button("Download Poster", buf.getvalue(), file_name="poster.png", mime="image/png")
-    buf = io.BytesIO(); poster.save(buf, format="PNG")
-    st.download_button("Download Poster", buf.getvalue(), file_name="poster.png", mime="image/png")
-    buf = io.BytesIO(); poster.save(buf, format="PNG")
-    st.download_button("Download Poster", buf.getvalue(), file_name="poster.png", mime="image/png")
+    st.download_button(
+        "Poster herunterladen", 
+        buf.getvalue(), 
+        file_name=f"{event_name.replace(' ', '_')}_poster.png", 
+        mime="image/png"
+    )

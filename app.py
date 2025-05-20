@@ -101,12 +101,14 @@ if st.button("Poster erstellen") and gpx_file and event_name and runner and dura
     y = PAD
     # Titel
     title = event_name.upper()
-    tw,th = draw.textsize(title, font=f_title)
+    bbox = draw.textbbox((0,0), title, font=f_title)
+    tw, th = bbox[2]-bbox[0], bbox[3]-bbox[1]
     draw.text(((POSTER_W-tw)/2, y), title, font=f_title, fill="#000")
     y += th + 20
     # Datum darunter
     date_str = run_date.strftime('%d %B %Y')
-    dw,dh = draw.textsize(date_str, font=f_sub)
+    bbox_d = draw.textbbox((0,0), date_str, font=f_sub)
+    dw, dh = bbox_d[2]-bbox_d[0], bbox_d[3]-bbox_d[1]
     draw.text(((POSTER_W-dw)/2, y), date_str, font=f_sub, fill="#333")
     y += dh + PAD
 
@@ -117,12 +119,14 @@ if st.button("Poster erstellen") and gpx_file and event_name and runner and dura
     # Footer-Zeilen
     # Läufer + Bib
     line1 = f"{runner}   #{bib_no.strip()}"
-    w1,h1 = draw.textsize(line1, font=f_meta)
+    bbox1 = draw.textbbox((0,0), line1, font=f_meta)
+    w1, h1 = bbox1[2]-bbox1[0], bbox1[3]-bbox1[1]
     draw.text(((POSTER_W-w1)/2, y), line1, font=f_meta, fill="#000")
     y += h1 + 20
     # Distanz, Zeit
     line2 = f"{distance}   •   {duration}"
-    w2,h2 = draw.textsize(line2, font=f_meta)
+    bbox2 = draw.textbbox((0,0), line2, font=f_meta)
+    w2, h2 = bbox2[2]-bbox2[0], bbox2[3]-bbox2[1]
     draw.text(((POSTER_W-w2)/2, y), line2, font=f_meta, fill="#000")
 
     # 4) Download

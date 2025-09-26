@@ -280,7 +280,7 @@ if st.button("Poster erstellen") and gpx_file and event_name:
             logo = logo.resize((logo_width, logo_height), Image.LANCZOS)
             
             # Logo Position bestimmen
-            padding = 50  # Abstand vom Rand
+            padding = 80  # Abstand vom Rand
             if logo_position == "Oben links":
                 logo_pos = (BORDER_SIZE + padding, BORDER_SIZE + padding)
             elif logo_position == "Oben Mitte":
